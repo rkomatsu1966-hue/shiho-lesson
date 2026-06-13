@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>父と子の30分オンライン授業 v2</title>
+<style>
+  :root {
+    --blue: #1a56c4;
+    --blue-light: #e8f0fd;
+    --blue-mid: #b8cef7;
+    --green: #2e7d32;
+    --green-light: #e8f5e9;
+    --green-mid: #a5d6a7;
+    --amber: #b45309;
+    --amber-light: #fffbeb;
+    --amber-mid: #fcd34d;
+    --purple: #5b21b6;
+    --purple-light: #f3f0ff;
+    --purple-mid: #c4b5fd;
+    --coral: #be3a1e;
+    --coral-light: #fff1ee;
+    --coral-mid: #fca58e;
+    --gray: #374151;
+    --gray-light: #f9fafb;
+    --gray-mid: #d1d5db;
+    --text: #111827;
+    --text-sub: #6b7280;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Hiragino Kaku Gothic ProN','Meiryo',sans-serif; background: #f0f4ff; color: var(--text); min-height: 100vh; }
+
+  .top-header { background: #1a3a8f; color: white; padding: 18px 32px; display: flex; align-items: center; justify-content: space-between; }
+  .top-header h1 { font-size: 20px; font-weight: 700; }
+  .top-header .subtitle { font-size: 13px; opacity: 0.75; margin-top: 2px; }
+
+  .day-nav { background: white; border-bottom: 1px solid #e5e7eb; display: flex; overflow-x: auto; padding: 0 24px; gap: 4px; scrollbar-width: none; }
+  .day-nav::-webkit-scrollbar { display: none; }
+  .day-btn { flex-shrink: 0; padding: 14px 18px; border: none; background: none; cursor: pointer; font-size: 13px; font-weight: 500; color: var(--text-sub); border-bottom: 3px solid transparent; font-family: inherit; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .day-btn .day-date { font-size: 11px; opacity: 0.7; }
+  .day-btn.active { color: var(--blue); border-bottom-color: var(--blue); }
+  .day-btn:hover:not(.active) { color: var(--text); background: #f9fafb; }
+
+  .main { max-width: 900px; margin: 0 auto; padding: 28px 20px 60px; }
+  .day-panel { display: none; }
+  .day-panel.active { display: block; }
+
+  .day-heading { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; }
+  .day-badge { font-size: 13px; font-weight: 700; padding: 6px 14px; border-radius: 20px; color: white; }
+  .day-title { font-size: 22px; font-weight: 700; }
+  .day-theme { font-size: 14px; color: var(--text-sub); margin-top: 2px; }
+
+  .phase { margin-bottom: 20px; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--gray-mid); }
+  .phase-header { display: flex; align-items: center; gap: 10px; padding: 12px 18px; cursor: pointer; user-select: none; }
+  .phase-time { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 20px; flex-shrink: 0; }
+  .phase-name { font-size: 15px; font-weight: 600; flex: 1; }
+  .phase-arrow { font-size: 14px; color: var(--text-sub); transition: transform 0.2s; }
+  .phase.open .phase-arrow { transform: rotate(180deg); }
+  .phase-body { display: none; padding: 20px; background: white; }
+  .phase.open .phase-body { display: block; }
+
+  .phase.talk .phase-header { background: var(--blue-light); }
+  .phase.talk .phase-time { background: var(--blue-mid); color: #1e3a7a; }
+  .phase.math .phase-header { background: var(--green-light); }
+  .phase.math .phase-time { background: var(--green-mid); color: #1a4c1c; }
+  .phase.eng .phase-header { background: var(--amber-light); }
+  .phase.eng .phase-time { background: var(--amber-mid); color: #7c3a04; }
+  .phase.jpn .phase-header { background: var(--purple-light); }
+  .phase.jpn .phase-time { background: var(--purple-mid); color: #3b1285; }
+  .phase.wrap .phase-header { background: var(--coral-light); }
+  .phase.wrap .phase-time { background: var(--coral-mid); color: #7c1c06; }
+
+  .block { margin-bottom: 20px; }
+  .block:last-child { margin-bottom: 0; }
+  .block-title { font-size: 14px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+
+  .hint-box { background: #f0f7ff; border-left: 4px solid var(--blue); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; padding: 10px 14px; font-size: 13px; line-height: 1.7; margin-bottom: 12px; color: #1e3a6e; }
+
+  .qa-list { display: flex; flex-direction: column; gap: 10px; }
+  .qa-card { border: 1px solid var(--gray-mid); border-radius: var(--radius-sm); overflow: hidden; }
+  .qa-q { background: #f9fafb; padding: 12px 16px; font-size: 14px; font-weight: 600; display: flex; align-items: flex-start; gap: 10px; line-height: 1.6; }
+  .qa-q .q-label { background: #374151; color: white; font-size: 11px; padding: 2px 7px; border-radius: 4px; flex-shrink: 0; margin-top: 2px; }
+  .qa-a { padding: 10px 16px; font-size: 13px; color: var(--text-sub); display: none; border-top: 1px solid var(--gray-mid); background: white; line-height: 1.8; }
+  .qa-a.show { display: block; }
+  .ans-label { background: #1a56c4; color: white; font-size: 11px; padding: 2px 7px; border-radius: 4px; display: inline-block; margin-right: 6px; margin-bottom: 4px; }
+  .show-btn { font-size: 12px; padding: 5px 12px; border: 1px solid var(--gray-mid); border-radius: 6px; background: white; cursor: pointer; color: var(--blue); font-family: inherit; margin-top: 8px; font-weight: 500; display: block; }
+  .show-btn:hover { background: var(--blue-light); }
+
+  .word-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .word-card { border: 1px solid var(--gray-mid); border-radius: var(--radius-sm); padding: 12px; text-align: center; background: white; cursor: pointer; transition: box-shadow 0.15s; }
+  .word-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+  .word-card .en { font-size: 14px; font-weight: 700; color: var(--amber); }
+  .word-card .ja { font-size: 12px; color: var(--text-sub); margin-top: 4px; }
+  .word-card .ex { font-size: 11px; color: #9ca3af; margin-top: 4px; display: none; font-style: italic; line-height: 1.5; }
+  .word-card.flipped .ex { display: block; }
+
+  .comp-prompt { background: var(--purple-light); border-left: 4px solid var(--purple); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; padding: 12px 16px; font-size: 14px; line-height: 1.9; margin-bottom: 12px; color: #3b1285; }
+  .comp-example { background: #f9fafb; border: 1px dashed var(--gray-mid); border-radius: var(--radius-sm); padding: 12px 16px; font-size: 13px; line-height: 2; color: var(--text-sub); }
+  .comp-example strong { color: var(--text); }
+
+  .star-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .stamp-btn { width: 44px; height: 44px; border-radius: 50%; border: 2px solid var(--gray-mid); background: white; font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.1s, border-color 0.1s; }
+  .stamp-btn.stamped { border-color: #fbbf24; background: #fffbeb; transform: scale(1.1); }
+
+  .divider { border: none; border-top: 1px solid #e5e7eb; margin: 18px 0; }
+  .tip-box { background: #fef9c3; border: 1px solid #fde047; border-radius: var(--radius-sm); padding: 10px 14px; font-size: 12px; line-height: 1.7; color: #713f12; }
+  .tip-box::before { content: "💡 パパへのヒント："; font-weight: 700; }
+
+  .level-badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 700; margin-left: 8px; }
+  .lv-hard { background: #fee2e2; color: #991b1b; }
+  .lv-mid { background: #fef3c7; color: #92400e; }
+  .lv-easy { background: #d1fae5; color: #065f46; }
+
+  table.data-tbl { width:100%; border-collapse:collapse; font-size:13px; margin-bottom:12px; }
+  table.data-tbl th { padding:8px 10px; background:#f3f4f6; border:1px solid #e5e7eb; text-align:center; font-weight:600; }
+  table.data-tbl td { padding:8px 10px; border:1px solid #e5e7eb; text-align:center; }
+  table.data-tbl td:first-child { text-align:left; }
+
+  .eng-passage { background: #fffbeb; border: 1px solid #fcd34d; border-radius: var(--radius-sm); padding: 16px; font-size: 14px; line-height: 2; margin-bottom: 14px; }
+  .eng-passage .passage-title { font-size: 12px; font-weight: 700; color: #92400e; margin-bottom: 8px; }
+  .vocab-note { font-size: 12px; color: #b45309; background: #fffbeb; padding: 3px 8px; border-radius: 4px; display: inline-block; margin: 2px; }
+</style>
+</head>
+<body>
+
+<div class="top-header">
+  <div>
+    <div class="subtitle">父と子の30分オンライン授業 ── 6月13日〜19日</div>
+    <h1>今週の学習スライド</h1>
+  </div>
+  <div style="font-size:28px;">⚽</div>
+</div>
+
+<nav class="day-nav">
+  <button class="day-btn active" onclick="switchDay(0)">土<span class="day-date">6/13</span></button>
+  <button class="day-btn" onclick="switchDay(1)">日<span class="day-date">6/14</span></button>
+  <button class="day-btn" onclick="switchDay(2)">月<span class="day-date">6/15</span></button>
+  <button class="day-btn" onclick="switchDay(3)">火<span class="day-date">6/16</span></button>
+  <button class="day-btn" onclick="switchDay(4)">水<span class="day-date">6/17</span></button>
+  <button class="day-btn" onclick="switchDay(5)">木<span class="day-date">6/18</span></button>
+  <button class="day-btn" onclick="switchDay(6)">金<span class="day-date">6/19</span></button>
+</nav>
+
+<div class="main">
+
+<!-- ========== 土曜 6/13 ========== -->
+<div class="day-panel active" id="day-0">
+  <div class="day-heading">
+    <div class="day-badge" style="background:#1a56c4;">土 6/13</div>
+    <div><div class="day-title">スポーツ統計で算数チャレンジ！</div>
+    <div class="day-theme">算数メイン ── 割合・速さ・面積の基礎に挑戦</div></div>
+  </div>
+
+  <div class="phase talk open">
+    <div class="phase-header" onclick="togglePhase(this)">
+      <span class="phase-time">0〜10分</span>
+      <span class="phase-name">🗣 ウォームアップ：今週の目標＆選手トーク</span>
+      <span class="phase-arrow">▼</span>
+    </div>
+    <div class="phase-body">
+      <div class="hint-box">パパが先に「今週ひとつ頑張ること」を宣言。子どもにも聞いてみましょう。</div>
+      <div class="qa-list">
+        <div class="qa-card"><div class="qa-q"><span class="q-label">Q</span>今いちばん好きなスポーツ選手は誰？その選手のどこがすごいと思う？</div></div>
+        <div class="qa-card"><div class="qa-q"><span class="q-label">Q</span>スポーツの記録って、どうやって比べると公平だと思う？（試合数が違っても…）</div></div>
+        <div class="qa-card"><div class="qa-q"><span class="q-label">Q</span>今週、自分で「これをがんばる！」ことを1つ決めよう</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="phase math open">
+    <div class="phase-header" onclick="togglePhase(this)">
+      <span class="phase-time">10〜25分</span>
+      <span class="phase-name">🔢 算数：大きな数の計算＆文章題</span>
+      <span class="phase-arrow">▼</span>
+    </div>
+    <div class="phase-body">
+      <div class="hint-box">スポーツの数字を使って、大きな数・かけ算・わり算の文章題に挑戦しよう！</div>
+
+      <div class="block">
+        <div class="block-title"><span class="icon">⚽</span>① 大きな数とかけ算<span class="level-badge lv-mid">★★☆</span></div>
+        <div class="qa-list">
+          <div class="qa-card">
+            <div class="qa-q"><span class="q-label">問1</span>サッカースタジアムの入場者数は1試合あたり45,000人です。10試合で合計何人になりますか？</div>
+            <button class="show-btn" onclick="toggleAns(this)">こたえを見る</button>
+            <div class="qa-a"><span class="ans-label">式</span>45,000 × 10 ＝ <strong>450,000人（45万人）</strong></div>
+          </div>
+          <div class="qa-card">
+            <div class="qa-q"><span class="q-label">問2</span>選手のユニフォームを1着3,800円で24着まとめ買いしました。合計いくら？</div>
+            <button class="show-btn" onclick="toggleAns(this)">こたえを見る</button>
+            <div class="qa-a"><span class="ans-label">式</span>3,800 × 24 ＝ 3,800×20 + 3,800×4 ＝ 76,000 + 15,200 ＝ <strong>91,200円</strong></div>
+          </div>
+        </div>
+      </div>
+
+      <hr class="divider">
+      <div class="block">
+        <div class="block-title"><span class="icon">🏊</span>② わり算の文章題<span class="level-badge lv-mid">★★☆</span></div>
+        <div class="qa-list">
+          <div class="qa-card">
+            <div class="qa-q"><span class="q-label">問3</span>水泳の練習で、1週間に合計840m泳ぎました。7日間同じ距離ずつ泳いだとしたら、1日何m泳いだことになりますか？</div>
+            <button class="show-btn" onclick="toggleAns(this)">こたえを見る</button>
+            <div class="qa-a"><span class="ans-label">式</span>840 ÷ 7 ＝ <strong>120m</strong></div>
+          </div>
+          <div class="qa-card">
+            <div class="qa-q"><span class="q-label">問4</span>バスケットボールの試合で、チームが4クォーター合計96点を取りました。1クォーターあたり平均何点？また、あまりはありますか？</div>
+            <button class="show-btn" onclick="toggleAns(this)">こたえを見る</button>
+            <div class="qa-a"><span class="ans-label">式</span>96 ÷ 4 ＝ <strong>24点</strong>（あまりなし）</div>
+          </div>
+        </div>
+      </div>
+
+      <hr class="divider">
+      <div class="block">
+        <div class="block-title"><span class="icon">🏟</span>③ 2ステップの文章題<span class="level-badge lv-mid">★★★</span></div>
+        <div class="hint-box">2つの計算を順番に使う問題。「まず何を求めるか」を考えてから計算しよう。</div>
+        <div class="qa-list">
+          <div class="qa-card">
+            <div class="qa-q"><span class="q-label">問5</span>野球チームのバットが1本6,500円です。1本ずつ8チーム分買ったあと、50,000円出しました。おつりはいくら？</div>
+            <button class="show-btn" onclick="toggleAns(this)">こたえを見る</button>
+            <div class="qa-a"><span class="ans-label">式</span>①合計：6,500 × 8 ＝ 52,000円<br>②おつり：50,000 − 52,000 ＝ <strong>−2,000円 → 足りない！2,000円不足</strong><br><span style="font-size:12px;">「おつりが出ない」という気づきも正解のうち。</span></div>
+          </div>
+          <div class="qa-card">
+            <div class="qa-q"><span class="q-label">問6 ★</span>サッカー選手が1日12kmを6日間練習した。同じ総距離を5日間に分けると、1日何km走ればよい？</div>
+            <button class="show-btn" onclick="toggleAns(this)">こたえを見る</button>
+            <div class="qa-a"><span class="ans-label">式</span>①総距離：12 × 6 ＝ 72km<br>②1日あたり：72 ÷ 5 ＝ <strong>14.4km</strong></div>
+          </div>
+        </div>
+      </div>
+      <div class="tip-box">問5は「お金が足りない」という答えになることを先に予想させると面白い。問6は「①まず合計、②次に割る」という2ステップを声に出して確認しましょう。</div>
+    </div>
+  </div>
+
+  <div class="phase wrap open">
+    <div class="phase-header" onclick="togglePhase(this)">
+      <span class="phase-time">25〜30分</span>
+      <span class="phase-name">🌟 クールダウン：今日のMVP発表</span>
+      <span class="phase-arrow">▼</span>
+    </div>
+    <div class="phase-body">
+      <div class="hint-box">「今日いちばん難しかった問題はどれ？どうやって考えた？」と聞いてみましょう。</div>
+      <div class="block">
+        <div class="block-title">⭐ 今日のスタンプ</div>
+        <div class="star-row">
+          <div class="stamp-btn" onclick="this.classList.toggle('stamped')">⭐</div>
+          <div class="stamp-btn" onclick="this.classList.toggle('stamped')">⭐</div>
+          <div class="stamp-btn" onclick="this.classList.toggle('stamped')">⭐</div>
+          <span style="font-size:13px;color:#6b7280;">できたと思ったら押そう！</span>
+        </div>
+      </div>
+      <div class="hint-box" style="margin-top:12px;">明日の予告：「英語で本格的な長文読解に挑戦するよ！」と伝えておこう。</div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== 日曜 6/14 ========== -->
+<div class="day-panel" id="day-1">
+  <div class="day-heading">
+    <div class="day-badge" style="background:#b45309;">日 6/14</div>
+    <div><div class="day-title">英語：長文読解＆準2級単語</div>
+    <div class="day-theme">英語メイン ── スポーツ記事を読んで問いに答えよう</div></div>
+  </div>
+
+  <div class="phase talk open">
+    <div class="phase-header" onclick="togglePhase(this)">
+      <span class="phase-time">0〜10分</span>
+      <span class="phase-name">🗣 ウォームアップ：昨日はどうだった？</span>
+      <span class="phase-arrow">▼</span>
+    </div>
+    <div class="phase-body">
+      <div class="hint-box">フィリピンの日常の話から入りましょう。</div>
+      <div class="qa-list">
+        <div class="qa-card"><div class="qa-q"><span class="q-label">Q</span>フィリピンで最近食べた食べ物で、いちばんおいしかったのは？</div></div>
+        <div class="qa-card"><div class="qa-q"><span class="q-label">Q</span>学校で英語の授業はある？どんなことをやっている？</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="phase eng open">
+    <div class="phase-header" onclick="togglePhase(this)">
+      <span class="phase-time">10〜25分</span>
+      <span class="phase-name">🌍 英語：スポーツ記事の長文読解</span>
+      <span class="phase-arrow">▼</span>
+    </div>
+    <div class="phase-body">
+      <div class="hint-box">まずパパが1文ずつ読み上げて、子どもが日本語で意味を言う形で進めましょう。</div>
+
+      <div class="block">
+        <div class="block-title"><span class="icon">📰</span>英文パッセージ（準2級レベル）</div>
+        <div class="eng-passage">
+          <div class="passage-title">📄 "The Spirit of the Marathon"</div>
+          Every year, thousands of athletes from around the world <strong>participate</strong> in marathon races. A marathon is 42.195 kilometers long, and it <strong>requires</strong> not only physical strength but also great mental <strong>determination</strong>.<br><br>
+          One famous marathon runner, Eliud Kipchoge, <strong>achieved</strong> an incredible record in 2019. He <strong>completed</strong> the race in under two hours — a goal that many people once believed was <strong>impossible</strong>. His <strong>success</strong> inspired millions of people around the world to <strong>challenge</strong> their own limits.<br><br>
+          Kipchoge once said, "No human is limited." This <strong>phrase</strong> means that with enough effort and <strong>dedication</strong>, anyone can <strong>accomplish</strong> great things.
+        </div>
+        <div>
+          <span class="vocab-note">participate 参加する</span>
+          <span class="vocab-note">requires 必要とする</span>
+          <span class="vocab-note">determination 決意・意志</span>
+          <span class="vocab-note">achieved 達成した</span>
+          <span class="vocab-note">impossible 不可能な</span>
+          <span class="vocab-note">dedication 献身・努力</span>
+          <span class="vocab-note">accomplish 成し遂げる</span>
+        </div>
+      </div>
+
+      <div class="block">
+        <div class="block-title"><span class="icon">❓</span>内容確認問題（日本語で答えてOK）</div>
+        <div class="qa-list">
+          <div class="qa-card">
+            <div class="qa-q"><span class="q-label">Q1</span>マラソンは何kmの競技ですか？</div>
+            <button class="show-btn" onclick="toggleAns(this)">こたえを見る</button>
+            <div class="qa-a"><span class="ans-label">答え</span><strong>42.195km</strong></div>
+          </div>
+          <div class="qa-card">
+            <div class="qa-q"><span class="q-label">Q2</span>キプチョゲはいつ、どんな記録を達成しましたか？</div>
+            <button class="show-btn" onclick="toggleAns(this)">こたえを見る</button>
+            <div class="qa-a"><span class="ans-label">答え</span>2019年に、マラソンを<strong>2時間以内</strong>で完走した</div>
+          </div>
+          <div class="qa-card">
+            <div class="qa-q"><span class="q-label">Q3</span>"No human is limited." はどういう意味ですか？</div>
+            <button class="show-btn" onclick="toggleAns(this)">こたえを見る</button>
+            <div class="qa-a"><span class="ans-label">答え</span>「人間に限界はない」努力と献身があれば誰でも偉大なことを成し遂げられる</div>
+          </div>
+          <div class="qa-card">
+            <div class="qa-q"><span class="q-label">Q4 ★</span>Why did Kipchoge inspire millions of people?（英語で答えてみよう）</div>
+            <button class="show-btn" onclick="toggleAns(this)">こたえを見る</button>
+            <div class="qa-a"><span class="ans-label">例文</span><strong>Because he achieved something that people thought was impossible.</strong></div>
+          </div>
+        </div>
+      </div>
+
+      <hr class="divider">
+      <div class="block">
+        <div class="block-title"><span class="icon">📚</span>準2級レベル重要単語（今日の7語）</div>
+        <div class="word-grid">
+          <div class="word-card" onclick="this.classList.toggle('flipped')"><div class="en">participate</div><div class="ja">参加する</div><div class="ex">She participated in the race.</div></div>
+          <div class="word-card" onclick="this.classList.toggle('flipped')"><div class="en">determination</div><div class="ja">決意・意志</div><div class="ex">He showed great determination.</div></div>
+          <div class="word-card" onclick="this.classList.toggle('flipped')"><div class="en">achieve</div><div class="ja">達成する</div><div class="ex">She achieved her goal.</div></div>
+          <div class="word-card" onclick="this.classList.toggle('flipped')"><div class="en">impossible</div><div class="ja">不可能な</div><div class="ex">Nothing is impossible.</div></div>
+          <div class="word-card" onclick="this.classList.toggle('flipped')"><div class="en">inspire</div><div class="ja">刺激・感化する</div><div class="ex">His story inspired me.</div></div>
+          <div class="word-card" onclick="this.classList.toggle('flipped')"><div class="en">dedication</div><div class="ja">献身・努力</div><div class="ex">Success needs dedication.</div></div>
+          <div class="word-card" onclick="this.classList.toggle('flipped')"><div class="en">accomplish</div><div class="ja">成し遂げる</div><div class="ex">They accomplished the task.</div></div>
+        </div>
+        <div style="font-size:12px;color:#6b7280;margin-top:8px;">※ カードをクリックすると例文が表示されます</div>
+      </div>
+      <div class="tip-box">Q4は英語で答えさせるのが理想ですが、日本語で内容を説明できていればまずOK。「Because…」で始まる英文を一緒に作るだけでも十分です。</div>
+    </div>
+  </div>
+
+  <div class="phase wrap open">
+    <div class="phase-header" onclick="togglePhase(this)">
+      <span class="phase-time">25〜30分</span>
+      <span class="phase-name">🌟 クールダウン：明日の予告</span>
+      <span class="phase-arrow">▼</span>
+    </div>
+    <div class="phase-body">
+      <div class="hint-box">「明日は週末の出来事を作文するよ！5文でしっかり書いてみよう」と予告しましょう。</div>
+      <div class="block">
+        <div class="block-title">⭐ 今日のスタンプ</div>
+        <div class="star-row">
+          <div class="stamp-btn" onclick="this.classList.toggle('stamped')">⭐</div>
+          <div class="stamp-btn" onclick="this.classList.toggle('stamped')">⭐</div>
+          <div class="stamp-btn" onclick="this.classList.toggle('stamped')">⭐</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== 月曜 6/15 ========== -->
+<div class="day-panel" id="day-2">
+  <div class="day-heading">
+    <div class="day-badge" style="background:#5b21b6;">月 6/15</div>
+    <div><div class="day-title">週末日記＋表現を工夫した作文</div>
+    <div class="day-theme">国語・作文メイン ── 5文作文＆「ことわざ」を使ってみよう</div></div>
+  </div>
+
+  <div class="phase talk open">
+    <div class="phase-header" onclick="togglePhase(this)">
+      <span class="phase-time">0〜10分</span>
+      <span class="phase-name">🗣 ウォームアップ：週末の振り返り</span>
+      <span class="phase-arrow">▼</span>
+    </div>
+    <div class="phase-body">
+      <div class="hint-box">「週末、楽しかったこと1つだけ教えて」と聞いてみましょう。</div>
+      <div class="qa-list">
+        <div class="qa-card"><div class="qa-q"><span class="q-label">Q</span>土日でいちばん楽しかったことは何？</div></div>
+        <div class="qa-card"><div class="qa-q"><span class="q-label">Q</span>フィリピンで友だちとどんなことをして遊んだ？</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="phase jpn open">
+    <div class="phase-header" onclick="togglePhase(this)">
+      <span class="phase-time">10〜25分</span>
+      <span class="phase-name">✏️ 国語・作文：5文日記＋ことわざ活用</span>
+      <span class="phase-arrow">▼</span>
+    </div>
+    <div class="phase-body">
+      <div class="block">
+        <div class="block-title"><span class="icon">📌</span>作文の5つの型</div>
+        <div class="comp-prompt">
+          ① いつ・どこで・何をしたか（情景描写）<br>
+          ② そのときの様子を詳しく（比喩・擬音語を入れよう）<br>
+          ③ どんな気持ちだったか（理由も書く）<br>
+          ④ 失敗・困ったこと・驚いたこと<br>
+          ⑤ 気づいたこと・次にいかしたいこと
+        </div>
+      </div>
+      <div class="block">
+        <div class="block-title"><span class="icon">💡</span>表現の工夫ポイント</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+          <div style="background:#f0f7ff;border-radius:8px;padding:10px;font-size:13px;"><strong>比喩（たとえ）</strong><br>「稲妻のように速く」「岩のようにどっしり」</div>
+          <div style="background:#f0fdf4;border-radius:8px;padding:10px;font-size:13px;"><strong>擬音語・擬態語</strong><br>「ドキドキ」「ふわふわ」「バシッと」</div>
+          <div style="background:#fffbeb;border-radius:8px;padding:10px;font-size:13px;"><strong>色・においの描写</strong><br>「真っ青な空の下」「潮の香りがした」</div>
+          <div style="background:#fdf4ff;border-radius:8px;padding:10px;font-size:13px;"><strong>ことわざを使う</strong><br>「七転び八起き」「石の上にも三年」</div>
+        </div>
+      </div>
+      <div class="block">
+        <div class="block-title"><span class="icon">📝</span>例文（読み上げてみよう）</div>
+        <div class="comp-example">
+          <strong>①</strong> 土曜日の午後、友だちと砂浜でサッカーをしました。<br>
+          <strong>②</strong> 波の音をBGMに、ボールはまるで生き物のように足元で跳ね回りました。<br>
+          <strong>③</strong> シュートが決まったとき、胸の奥がじんわりと熱くなりました。<br>
+          <strong>④</strong> しかし、砂に足をとられて転んでしまい、膝を少しすりむきました。<br>
+          <strong>⑤</strong> 「七転び八起き」という言葉のように、転んでも立ち上がることが大切だと気づきました。
+        </div>
+      </div>
+      <div class="block">
+        <div class="block-title"><span class="icon">📚</span>使えるおすすめことわざ</div>
+        <div class="qa-list">
+          <div class="qa-card"><div class="qa-q"><span class="q-label">七転び八起き</span>何度失敗しても、あきらめずに立ち上がること</div></div>
+          <div class="qa-card"><div class="qa-q"><span class="q-label">石の上にも三年</span>つらくても続ければ、必ず報われること</div></div>
+          <div class="qa-card"><div class="qa-q"><span class="q-label">急がば回れ</span>急いでいるときこそ、確実な方法を選ぶべき</div></div>
+          <div class="qa-card"><div class="qa-q"><span class="q-label">案ずるより産むが易し</span>心配するより、やってみると案外うまくいく</div></div>
+        </div>
+      </div>
+      <div class="tip-box">ことわざは1つでも使えたら大成功！無理に使わせず「この文、どのことわざが合いそう？」と一緒に選ぶ形でもOKです。</div>
+    </div>
+  </div>
+
+  <div class="phase wrap open">
+    <div class="phase-header" onclick="togglePhase(this)">
+      <span class="phase-time">25〜30分</span>
+      <span class="phase-name">🌟 クールダウン：暗号メッセージ</span>
+      <span class="phase-arrow">▼</span>
+    </div>
+    <div class="phase-body">
+      <div class="hint-box">パパから子どもへ「ひみつの言葉」を暗号で送ろう。アルファベット順をずらす「シーザー暗号」もおもしろい！</div>
+      <div class="comp-example" style="font-size:13px;line-height:2;">
+        <strong>シーザー暗号（3つずらし）の例：</strong><br>
+        A→D, B→E, C→F …とアルファベットを3つ後ろにずらす<br>
+        "WELL DONE" → "ZHOO GRQH"<br>
+        子どもに解読させてみよう！
+      </div>
+      <div class="block" style="margin-top:12px;">
+        <div class="block-title">⭐ 今日のスタンプ</div>
+        <div class="star-row">
+          <div class="stamp-btn" onclick="this.classList.toggle('stamped')">⭐</div>
+          <div class="stamp-btn" onclick="this.classList.toggle('stamped')">⭐</div>
+          <div class="stamp-btn" onclick="this.classList.toggle('stamped')">⭐</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== 火曜 6/16 ========== -->
+<div class="day-panel" id="day-3">
+  <div class="day-heading">
+    <div class="day-badge" style="background:#1a56c4;">火 6/16</div>
+    <div><div class="day-title">データ分析＆思考力算数</div>
+    <div class="day-theme">算数メイン ── 平均・比・グラフ読解に挑戦</div></div>
+  </div>
+
+  <div class="phase talk open">
+    <div class="phase-header" onclick="togglePhase(this)">
+      <span class="phase-time">0〜10分</span>
+      <span class="phase-name">🗣 ウォームアップ：スポーツなぞなぞ対決</span>
+      <span class="phase-arrow">▼</span>
+    </div>
+    <div class="phase-body">
+      <div class="hint-box">パパと子どもで交互に出し合おう！子どもが先に出させると盛り上がる。</div>
+      <div class="qa-list">
+        <div class="qa-card">
+          <div class="qa-q"><span class="q-label">なぞ1</span>野球で、投手が1試合に3人の打者を全員三振にとった。何アウト？</div>
+          <button class="show-btn" onclick="toggleAns(this)">こたえを見る</button>
+          <div class="qa-a"><span class="ans-label">答え</span>3アウト（1イニング）。でも1試合27アウトとれれば「完全試合」！</div>
+        </div>
+        <div class="qa-card">
+          <div class="qa-q"><span class="q-label">なぞ2</span>サッカーの試合、前半と後半を合わせると通常何分？延長なしで。</div>
+          <button class="show-btn" onclick="toggleAns(this)">こたえを見る</button>
+          <div class="qa-a"><span class="ans-label">答え</span>90分（45分×2）</div>
+        </div>
+        <div class="qa-card">
+          <div class="qa-q"><span class="q-label">なぞ3</span>5人でリレーをします。バトンを渡す回数は何回？</div>
+          <button class="show-btn" onclick="toggleAns(this)">こたえを見る</button>
+          <div class="qa-a"><span class="ans-label">答え</span>4回（5−1＝4）</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="phase math open">
+    <div class="phase-header" onclick="togglePhase(this)">
+      <span class="phase-time">10〜25分</span>
+      <span class="phase-name">🔢 算数：小数・順位表・2ステップ文章題</span>
+      <span class="phase-arrow">▼</span>
+    </div>
+    <div class="phase-body">
+      <div class="hint-box">今日は小数の計算と、順位表を使った文章題にチャレンジ！</div>
+
+      <div class="block">
+        <div class="block-title"><span class="icon">📊</span>① 小数の計算<span class="level-badge lv-mid">★★☆</span></div>
+        <div class="qa-list">
+          <div class="qa-card">
+            <div class="qa-q"><span class="q-label">問1</span>100m走のタイムがA選手11.3秒、B選手10.8秒でした。AとBの差は何秒？また、2人の合計タイムは？</div>
+            <button class="show-btn" onclick="toggleAns(this)">こたえを見る</button>
+            <div class="qa-a"><span class="ans-label">式</span>差：11.3 − 10.8 ＝ <strong>0.5秒</strong><br>合計：11.3 + 10.8 ＝ <strong>22.1秒</strong></div>
+          </div>
+          <div class="qa-card">
+            <div class="qa-q"><span class="q-label">問2</span>水泳練習でCさんは月曜に1.5km、水曜に0.8km、金曜に1.2km泳いだ。合計は何km何m？</div>
+            <button class="show-btn" onclick="toggleAns(this)">こたえを見る</button>
+            <div class="qa-a"><span class="ans-label">式</span>1.5 + 0.8 + 1.2 ＝ <strong>3.5km（＝3km500m）</strong></div>
+          </div>
+        </div>
+      </div>
+
+      <hr class="divider">
+      <div class="block">
+        <div class="block-title"><span class="icon">🏆</span>② 順位表の計算<span class="level-badge lv-mid">★★☆</span></div>
+        <table class="data-tbl">
+          <thead><tr><th>チーム</th><th>勝ち</th><th>負け</th><th>引き分け</th><th>得点</th><th>失点</th></tr></thead>
+          <tbody>
+            <tr><td>🦁 ライオンズ</td><td>8</td><td>2</td><td>2</td><td>28</td><td>12</td></tr>
+            <tr><td>🐯 タイガース</td><td>5</td><td>5</td><td>2</td><td>19</td><td>17</td></tr>
+            <tr><td>🦅 イーグルス</td><td>3</td><td>7</td><td>2</td><td>14</td><td>22</td></tr>
+          </tbody>
+        </table>
+        <div class="qa-list">
+          <div class="qa-card">
+            <div class="qa-q"><span class="q-label">問3</span>ライオンズの「得点 − 失点」（得失点差）はいくつ？</div>
+            <button class="show-btn" onclick="toggleAns(this)">こたえを見る</button>
+            <div class="qa-a"><span class="ans-label">式</span>28 − 12 ＝ <strong>＋16</strong></div>
+          </div>
+          <div class="qa-card">
+            <div class="qa-q"><span class="q-label">問4</span>3チームの失点を全部たすと何点？また、3チームの平均失点は？</div>
+            <button class="show-btn" onclick="toggleAns(this)">こたえを見る</button>
+            <div class="qa-a"><span class="ans-label">式</span>合計：12 + 17 + 22 ＝ 51点<br>平均：51 ÷ 3 ＝ <strong>17点</strong></div>
+          </div>
+        </div>
+      </div>
+
+      <hr class="divider">
+      <div class="block">
+        <div class="block-title"><span class="icon">🧩</span>③ 2ステップ文章題<span class="level-badge lv-mid">★★★</span></div>
+        <div class="qa-list">
+          <div class="qa-card">
+            <div class="qa-q"><span class="q-label">問5</span>サッカーチームが練習用ボールを1個2,400円で15個買い、ビブスを1枚850円で12枚買いました。合計いくらになりますか？</div>
+            <button class="show-btn" onclick="toggleAns(this)">こたえを見る</button>
+            <div class="qa-a"><span class="ans-label">式</span>ボール：2,400 × 15 ＝ 36,000円<br>ビブス：850 × 12 ＝ 10,200円<br>合計：36,000 + 10,200 ＝ <strong>46,200円</strong></div>
+          </div>
+          <div class="qa-card">
+            <div class="qa-q"><span class="q-label">問6 ★</span>選手が毎日1.5kmずつ走ります。月〜金の5日間走ったあと、土曜にさらに3km走りました。1週間の合計は何km？</div>
+            <button class="show-btn" onclick="toggleAns(this)">こたえを見る</button>
+            <div class="qa-a"><span class="ans-label">式</span>平日：1.5 × 5 ＝ 7.5km<br>合計：7.5 + 3 ＝ <strong>10.5km</strong></div>
+          </div>
+        </div>
+      </div>
+      <div class="tip-box">問4の「平均」は今週初登場。「全部たしてから個数で割る」という手順を声に出して確認しましょう。問5・6は「どこで分けて計算するか」を整理してから式を立てる習慣をつけましょう。</div>
+    </div>
+  </div>
+
+  <div class="phase wrap open">
+    <div class="phase-header" onclick="togglePhase(this)">
+      <span class="phase-time">25〜30分</span>
+      <span class="phase-name">🌟 クールダウン：今日のMVP</span>
+      <span class="phase-arrow">▼</span>
+    </div>
+    <div class="phase-body">
+      <div class="hint-box">「今日、自分で一番頑張ったと思うことを1つ言って」とリクエストしましょう。</div>
+      <div class="block">
+        <div class="block-title">⭐ 今日のスタンプ</div>
+        <div class="star-row">
+          <div class="stamp-btn" onclick="this.classList.toggle('stamped')">⭐</div>
+          <div class="stamp-btn" onclick="this.classList.toggle('stamped')">⭐</div>
+          <div class="stamp-btn" onclick="this.classList.toggle('stamped')">⭐</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== 水曜 6/17 ========== -->
+<div class="day-panel" id="day-4">
+  <div class="day-heading">
+    <div class="day-badge" style="background:#b45309;">水 6/17</div>
+    <div><div class="day-title">英語ライティング＆文法強化</div>
+    <div class="day-theme">英語メイン ── 準2級文法＋英作文にチャレンジ</div></div>
+  </div>
+
+  <div class="phase talk open">
+    <div class="phase-header" onclick="togglePhase(this)">
+      <span class="phase-time">0〜10分</span>
+      <span class="phase-name">🗣 ウォームアップ：子どもが先生！フィリピンQ&A</span>
+      <span class="phase-arrow">▼</span>
+    </div>
+    <div class="phase-body">
+      <div class="hint-box">パパが知らないフィリピンのことを子どもに「教えてもらう」コーナー。子どもが主役！</div>
+      <div class="qa-list">
+        <div class="qa-card"><div class="qa-q"><span class="q-label">Q</span>フィリピン語（タガログ語）で「ありがとう」「こんにちは」ってどう言うの？</div></div>
+        <div class="qa-card"><div class="qa-q"><span class="q-label">Q</span>フィリピンの学校と日本の学校、いちばん違うと思うことは何？</div></div>
+        <div class="qa-card"><div class="qa-q"><span class="q-label">Q</span>フィリピンで流行っているスポーツや遊びは何？</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="phase eng open">
+    <div class="phase-header" onclick="togglePhase(this)">
+      <span class="phase-time">10〜25分</span>
+      <span class="phase-name">🌍 英語：準2級文法＋英作文</span>
+      <span class="phase-arrow">▼</span>
+    </div>
+    <div class="phase-body">
+      <div class="hint-box">文法は「形を見て理解する」→「自分で使う」の順で進めましょう。</div>
+
+      <div class="block">
+        <div class="block-title"><span class="icon">📐</span>① 現在完了形（have + 過去分詞）</div>
+        <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:14px;margin-bottom:12px;font-size:13px;line-height:2;">
+          <strong>形：</strong> I / You / We / They <strong>have</strong> + 過去分詞<br>
+          　　He / She / It <strong>has</strong> + 過去分詞<br><br>
+          <strong>使う場面：</strong><br>
+          ・経験「〜したことがある」→ I <strong>have visited</strong> the Philippines.<br>
+          ・完了「〜し終えた」→ She <strong>has finished</strong> the race.<br>
+          ・継続「〜し続けている」→ He <strong>has trained</strong> for 10 years.
+        </div>
+        <div class="qa-list">
+          <div class="qa-card">
+            <div class="qa-q"><span class="q-label">練習1</span>「私はマラソンを走ったことがある」を英語で書こう</div>
+            <button class="show-btn" onclick="toggleAns(this)">こたえを見る</button>
+            <div class="qa-a"><span class="ans-label">答え</span><strong>I have run a marathon.</strong> （runの過去分詞はrun）</div>
+          </div>
+          <div class="qa-card">
+            <div class="qa-q"><span class="q-label">練習2</span>「彼は5年間サッカーを練習し続けている」を英語で</div>
+            <button class="show-btn" onclick="toggleAns(this)">こたえを見る</button>
+            <div class="qa-a"><span class="ans-label">答え</span><strong>He has practiced soccer for five years.</strong></div>
+          </div>
+        </div>
+      </div>
+
+      <hr class="divider">
+      <div class="block">
+        <div class="block-title"><span class="icon">📝</span>② 英作文：スポーツ体験を書こう<span class="level-badge lv-hard">★★★</span></div>
+        <div class="comp-prompt" style="border-left-color:var(--amber);background:var(--amber-light);color:#7c3a04;">
+          テーマ：「あなたがフィリピンで経験したこと・感じたこと」<br>
+          条件：① 現在完了形を1文以上使う<br>
+          　　　② 50語以上で書く<br>
+          　　　③ スポーツまたは学校生活について書く
+        </div>
+        <div class="comp-example">
+          <strong>例文：</strong><br>
+          I have been studying in the Philippines for several months. I have made many new friends here. We often play basketball after school. Basketball is very popular in the Philippines. I have improved my English a lot because I use it every day. It is sometimes difficult, but I enjoy the challenge.
+          <br><span style="font-size:11px;color:#9ca3af;">（約55語、現在完了形2箇所使用）</span>
+        </div>
+      </div>
+
+      <hr class="divider">
+      <div class="block">
+        <div class="block-title"><span class="icon">📚</span>③ 準2級頻出単語（今日の6語）</div>
+        <div class="word-grid">
+          <div class="word-card" onclick="this.classList.toggle('flipped')"><div class="en">improve</div><div class="ja">向上させる</div><div class="ex">She improved her score.</div></div>
+          <div class="word-card" onclick="this.classList.toggle('flipped')"><div class="en">challenge</div><div class="ja">挑戦・課題</div><div class="ex">Accept the challenge!</div></div>
+          <div class="word-card" onclick="this.classList.toggle('flipped')"><div class="en">effort</div><div class="ja">努力</div><div class="ex">His effort paid off.</div></div>
+          <div class="word-card" onclick="this.classList.toggle('flipped')"><div class="en">throughout</div><div class="ja">〜を通じて</div><div class="ex">Throughout the season.</div></div>
+          <div class="word-card" onclick="this.classList.toggle('flipped')"><div class="en">represent</div><div class="ja">代表する</div><div class="ex">She represents Japan.</div></div>
+          <div class="word-card" onclick="this.classList.toggle('flipped')"><div class="en">competitive</div><div class="ja">競争の激しい</div><div class="ex">A competitive sport.</div></div>
+        </div>
+      </div>
+      <div class="tip-box">英作文は書けなくてもOK。口で英語を言わせて、パパがタイプしてあげる形でも◎。まず「言える→書ける」の順番でOKです。</div>
+    </div>
+  </div>
+
+  <div class="phase wrap open">
+    <div class="phase-header" onclick="togglePhase(this)">
+      <span class="phase-time">25〜30分</span>
+      <span class="phase-name">🌟 クールダウン：チャレンジ宣言</span>
+      <span class="phase-arrow">▼</span>
+    </div>
+    <div class="phase-body">
+      <div class="hint-box">「今日覚えた単語を明日、実際に使ってみる」など小さなチャレンジを宣言させましょう。</div>
+      <div class="block">
+        <div class="block-title">⭐ 今日のスタンプ</div>
+        <div class="star-row">
+          <div class="stamp-btn" onclick="this.classList.toggle('stamped')">⭐</div>
+          <div class="stamp-btn" onclick="this.classList.toggle('stamped')">⭐</div>
+          <div class="stamp-btn" onclick="this.classList.toggle('stamped')">⭐</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== 木曜 6/18 ========== -->
+<div class="day-panel" id="day-5">
+  <div class="day-heading">
+    <div class="day-badge" style="background:#5b21b6;">木 6/18</div>
+    <div><div class="day-title">「なりたい選手」説得力のある作文</div>
+    <div class="day-theme">国語メイン ── 根拠・具体例・結論の3段構成で書く</div></div>
+  </div>
+
+  <div class="phase talk open">
+    <div class="phase-header" onclick="togglePhase(this)">
+      <span class="phase-time">0〜10分</span>
+      <span class="phase-name">🗣 ウォームアップ：今週のスポーツニュース</span>
+      <span class="phase-arrow">▼</span>
+    </div>
+    <div class="phase-body">
+      <div class="hint-box">パパが最近見たスポーツニュースを1つ紹介しましょう。</div>
+      <div class="qa-list">
+        <div class="qa-card"><div class="qa-q"><span class="q-label">Q</span>最近、スポーツで何かニュースを見た？どんなことがあった？</div></div>
+        <div class="qa-card"><div class="qa-q"><span class="q-label">Q</span>その選手・チームのどこがすごいと思った？</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="phase jpn open">
+    <div class="phase-header" onclick="togglePhase(this)">
+      <span class="phase-time">10〜25分</span>
+      <span class="phase-name">✏️ 国語：3段構成で「なりたい選手」作文</span>
+      <span class="phase-arrow">▼</span>
+    </div>
+    <div class="phase-body">
+      <div class="block">
+        <div class="block-title"><span class="icon">📌</span>3段構成（論理的な文章の基本）</div>
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:8px 16px;margin-bottom:14px;align-items:start;">
+          <div style="background:#1a56c4;color:white;border-radius:6px;padding:4px 12px;font-size:13px;font-weight:700;text-align:center;">序論</div>
+          <div style="font-size:13px;padding-top:4px;">自分の「主張・結論」を先に書く<br><span style="color:#6b7280;">例：「私は〇〇になりたい。なぜなら〜だからだ。」</span></div>
+          <div style="background:#2e7d32;color:white;border-radius:6px;padding:4px 12px;font-size:13px;font-weight:700;text-align:center;">本論</div>
+          <div style="font-size:13px;padding-top:4px;">具体的な根拠・エピソードを2つ<br><span style="color:#6b7280;">例：「理由①〜　理由②〜　また、〜という経験から…」</span></div>
+          <div style="background:#5b21b6;color:white;border-radius:6px;padding:4px 12px;font-size:13px;font-weight:700;text-align:center;">結論</div>
+          <div style="font-size:13px;padding-top:4px;">主張をもう一度・今後の決意<br><span style="color:#6b7280;">例：「だからこそ、私は〜し続けたい。」</span></div>
+        </div>
+      </div>
+      <div class="block">
+        <div class="block-title"><span class="icon">📝</span>例文（3段構成・約200字）</div>
+        <div class="comp-example" style="line-height:2.1;">
+          <strong>【序論】</strong>私はプロのサッカー選手になりたい。なぜなら、スポーツを通じて世界中の人々に感動と勇気を届けられると信じているからだ。<br>
+          <strong>【本論①】</strong>尊敬する選手は、試合に負けた後でも笑顔でインタビューに答え、「次に活かす」と話した。その姿を見て、結果より姿勢が大切だと学んだ。<br>
+          <strong>【本論②】</strong>フィリピンに来てから、言葉が通じなくてもスポーツで友だちができた。この経験が私の確信を深めた。<br>
+          <strong>【結論】</strong>だからこそ、勝ち負けより「全力を出し切ること」を大切にし、世界で戦える選手をめざしたい。
+        </div>
+      </div>
+      <div class="block">
+        <div class="block-title"><span class="icon">💬</span>書く前のヒント質問</div>
+        <div class="qa-list">
+          <div class="qa-card"><div class="qa-q"><span class="q-label">Q</span>なぜその選手・スポーツにあこがれるの？具体的なエピソードはある？</div></div>
+          <div class="qa-card"><div class="qa-q"><span class="q-label">Q</span>フィリピンでの経験から、スポーツについて学んだことは？</div></div>
+          <div class="qa-card"><div class="qa-q"><span class="q-label">Q</span>選手になるために「今すでにやっていること」と「これからやりたいこと」は？</div></div>
+        </div>
+      </div>
+      <div class="tip-box">「序論・本論・結論」は中学以降の作文・小論文の基本型。今のうちに型として体に入れておくと後で大きな差になります。書けたら必ず「序論はどれ？」と聞いて確認しましょう。</div>
+    </div>
+  </div>
+
+  <div class="phase wrap open">
+    <div class="phase-header" onclick="togglePhase(this)">
+      <span class="phase-time">25〜30分</span>
+      <span class="phase-name">🌟 クールダウン：来週のリクエスト</span>
+      <span class="phase-arrow">▼</span>
+    </div>
+    <div class="phase-body">
+      <div class="hint-box">「来週、どんなことをやってみたい？」と聞いてみよう。自分でテーマを決めると主体性が育ちます。</div>
+      <div class="block">
+        <div class="block-title">⭐ 今日のスタンプ</div>
+        <div class="star-row">
+          <div class="stamp-btn" onclick="this.classList.toggle('stamped')">⭐</div>
+          <div class="stamp-btn" onclick="this.classList.toggle('stamped')">⭐</div>
+          <div class="stamp-btn" onclick="this.classList.toggle('stamped')">⭐</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== 金曜 6/19 ========== -->
+<div class="day-panel" id="day-6">
+  <div class="day-heading">
+    <div class="day-badge" style="background:#be3a1e;">金 6/19</div>
+    <div><div class="day-title">週間ふりかえり＆総合チャレンジ！</div>
+    <div class="day-theme">まとめの日 ── 算数・英語・国語を横断した総合問題</div></div>
+  </div>
+
+  <div class="phase talk open">
+    <div class="phase-header" onclick="togglePhase(this)">
+      <span class="phase-time">0〜10分</span>
+      <span class="phase-name">🗣 ウォームアップ：週末の計画発表</span>
+      <span class="phase-arrow">▼</span>
+    </div>
+    <div class="phase-body">
+      <div class="hint-box">「今週末、何をしたい？」と子どもに先に言わせましょう。パパも予定を話してトークを広げて。</div>
+      <div class="qa-list">
+        <div class="qa-card"><div class="qa-q"><span class="q-label">Q</span>今週末、いちばんやりたいことは何？</div></div>
+        <div class="qa-card"><div class="qa-q"><span class="q-label">Q</span>来週のオンライン授業でやりたいテーマをリクエストしよう！</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="phase wrap open">
+    <div class="phase-header" onclick="togglePhase(this)">
+      <span class="phase-time">10〜25分</span>
+      <span class="phase-name">🏆 総合チャレンジ：3教科まとめ問題</span>
+      <span class="phase-arrow">▼</span>
+    </div>
+    <div class="phase-body">
+      <div class="hint-box">今週習ったことを全部使う！難しい問題も入っているので、時間内に解けた問題の数を数えよう。</div>
+
+      <div class="block">
+        <div class="block-title"><span class="icon">🔢</span>算数チャレンジ<span class="level-badge lv-mid">★★☆</span></div>
+        <div class="qa-list">
+          <div class="qa-card">
+            <div class="qa-q"><span class="q-label">算1</span>100m走で、Aは11.4秒、Bは12.1秒、Cは11.9秒かかった。3人の合計タイムと平均タイムを求めよう</div>
+            <button class="show-btn" onclick="toggleAns(this)">こたえを見る</button>
+            <div class="qa-a"><span class="ans-label">式</span>合計：11.4 + 12.1 + 11.9 ＝ 35.4秒<br>平均：35.4 ÷ 3 ＝ <strong>11.8秒</strong></div>
+          </div>
+          <div class="qa-card">
+            <div class="qa-q"><span class="q-label">算2</span>練習ボール1個1,850円を6個、飲み物1本120円を15本買いました。合計いくら？100,000円出したらおつりは？</div>
+            <button class="show-btn" onclick="toggleAns(this)">こたえを見る</button>
+            <div class="qa-a"><span class="ans-label">式</span>ボール：1,850×6＝11,100円<br>飲み物：120×15＝1,800円<br>合計：11,100+1,800＝12,900円<br>おつり：100,000−12,900＝<strong>87,100円</strong></div>
+          </div>
+          <div class="qa-card">
+            <div class="qa-q"><span class="q-label">算3 ★</span>選手が毎日2.4km走ります。月〜金の5日間走り、土曜は4km多く走りました。1週間の合計は何km？</div>
+            <button class="show-btn" onclick="toggleAns(this)">こたえを見る</button>
+            <div class="qa-a"><span class="ans-label">式</span>平日：2.4 × 5 ＝ 12km<br>土曜：12 + 4 ＝ 16km → いや、土曜は「2.4 + 4 ＝ 6.4km」<br>合計：12 + 6.4 ＝ <strong>18.4km</strong></div>
+          </div>
+        </div>
+      </div>
+
+      <hr class="divider">
+      <div class="block">
+        <div class="block-title"><span class="icon">🌍</span>英語チャレンジ<span class="level-badge lv-hard">★★★</span></div>
+        <div class="qa-list">
+          <div class="qa-card">
+            <div class="qa-q"><span class="q-label">英1</span>次の英文の空欄を埋めよう：「私は3年間バスケットボールを練習し続けている」<br>I ( &nbsp;&nbsp; ) ( &nbsp;&nbsp; ) basketball for three years.</div>
+            <button class="show-btn" onclick="toggleAns(this)">こたえを見る</button>
+            <div class="qa-a"><span class="ans-label">答え</span>I <strong>have practiced</strong> basketball for three years.</div>
+          </div>
+          <div class="qa-card">
+            <div class="qa-q"><span class="q-label">英2</span>「彼女はその試合に勝ったことがある」を現在完了形で書こう</div>
+            <button class="show-btn" onclick="toggleAns(this)">こたえを見る</button>
+            <div class="qa-a"><span class="ans-label">答え</span><strong>She has won the game.</strong>（または：She has won that match.）</div>
+          </div>
+          <div class="qa-card">
+            <div class="qa-q"><span class="q-label">英3</span>"dedication" "accomplish" "inspire" を使って1文ずつ英文を作ろう</div>
+            <button class="show-btn" onclick="toggleAns(this)">こたえを見る</button>
+            <div class="qa-a"><span class="ans-label">例</span>His <strong>dedication</strong> inspired me. / She <strong>accomplished</strong> her dream. / He <strong>inspired</strong> many people.</div>
+          </div>
+        </div>
+      </div>
+
+      <hr class="divider">
+      <div class="block">
+        <div class="block-title"><span class="icon">✏️</span>国語チャレンジ</div>
+        <div class="qa-list">
+          <div class="qa-card">
+            <div class="qa-q"><span class="q-label">国1</span>「案ずるより産むが易し」を使って1文作ろう</div>
+            <button class="show-btn" onclick="toggleAns(this)">こたえを見る</button>
+            <div class="qa-a"><span class="ans-label">例</span>初めての試合は緊張したが、案ずるより産むが易しで、始まったら楽しめた。</div>
+          </div>
+          <div class="qa-card">
+            <div class="qa-q"><span class="q-label">国2</span>今週書いた作文を1文で要約しよう（30字以内）</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="phase wrap open">
+    <div class="phase-header" onclick="togglePhase(this)">
+      <span class="phase-time">25〜30分</span>
+      <span class="phase-name">🏅 週間スター集計＆表彰式</span>
+      <span class="phase-arrow">▼</span>
+    </div>
+    <div class="phase-body">
+      <div class="hint-box">今週もらったスタンプを全部数えよう！15個満点。パパが「今週のベスト問題」を1つ選んで表彰すると盛り上がる。</div>
+      <div class="block">
+        <div class="block-title">⭐ 今週の合計スタンプを数えよう（今日の分も）</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+          <div style="background:var(--green-light);border:1px solid var(--green-mid);border-radius:8px;padding:12px;font-size:13px;color:#2e7d32;"><strong>🔢 算数</strong><br>割合・速さ・面積<br>平均・比・逆算<br>単位換算・思考力</div>
+          <div style="background:var(--amber-light);border:1px solid var(--amber-mid);border-radius:8px;padding:12px;font-size:13px;color:#b45309;"><strong>🌍 英語</strong><br>長文読解（準2級）<br>現在完了形<br>英作文（50語以上）</div>
+          <div style="background:var(--purple-light);border:1px solid var(--purple-mid);border-radius:8px;padding:12px;font-size:13px;color:#5b21b6;"><strong>✏️ 国語</strong><br>表現工夫の5文作文<br>ことわざの活用<br>3段構成・論理的作文</div>
+          <div style="background:var(--blue-light);border:1px solid var(--blue-mid);border-radius:8px;padding:12px;font-size:13px;color:#1a56c4;"><strong>💬 会話</strong><br>フィリピンQ&A<br>スポーツなぞなぞ<br>シーザー暗号</div>
+        </div>
+        <div style="margin-bottom:8px;font-size:14px;font-weight:600;">今週の合計スタンプ</div>
+        <div style="font-size:32px;letter-spacing:3px;">⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐</div>
+      </div>
+      <div class="block" style="margin-top:16px;">
+        <div class="block-title"><span class="icon">🏅</span>パパからひとこと</div>
+        <div class="comp-example" style="font-size:14px;line-height:2.1;">
+          「今週は〇〇の問題をあきらめずに考えていたね。それがいちばんかっこよかった。来週も一緒に挑戦しよう！」<br>
+          <span style="font-size:12px;color:#9ca3af;">※ 「正解した」より「考え続けた」姿勢を褒めると、難しい問題にもチャレンジする子になります</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /main -->
+
+<script>
+function switchDay(idx) {
+  document.querySelectorAll('.day-panel').forEach((p,i) => p.classList.toggle('active', i===idx));
+  document.querySelectorAll('.day-btn').forEach((b,i) => b.classList.toggle('active', i===idx));
+}
+function togglePhase(header) { header.parentElement.classList.toggle('open'); }
+function toggleAns(btn) {
+  const ans = btn.nextElementSibling;
+  ans.classList.toggle('show');
+  btn.textContent = ans.classList.contains('show') ? '隠す' : 'こたえを見る';
+}
+</script>
+</body>
+</html>
